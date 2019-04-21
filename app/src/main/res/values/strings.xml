@@ -1,0 +1,70 @@
+<resources>
+    <string name="app_name">FaceIdentification</string>
+
+    <string name="subscription_key">680dadece5c848eebdab2687418eb469</string>
+    <string name="endpoint">https://northeurope.api.cognitive.microsoft.com/face/v1.0</string>
+
+    <!-- Main activity -->
+    <string name="detection">Обнаружение</string>
+    <string name="face_verification">Сравнить фотографии лиц</string>
+    <string name="person_verification">Сравнить фотографию лица с персоной</string>
+    <string name="verification">Верификация</string>
+    <string name="identification">Идентификация</string>
+    <string name="grouping">Группировка</string>
+    <string name="find_similar_faces">Поиск похожих лиц</string>
+    <string name="detection_description">Обнаружение лиц, поз, улыбок, очков, пола и возраста</string>
+    <string name="verification_description">Аутентификация между двумя лицами или между лицом и персоной</string>
+    <string name="grouping_description">Группировка лиц по схожести</string>
+    <string name="find_similar_face_description">Поиск похожих лиц</string>
+    <string name="identification_description">Идентификация персоны</string>
+
+    <!-- Detection activity -->
+    <string name="image">Изображение</string>
+    <string name="select_image">Фото</string>
+    <string name="result">Результат:</string>
+    <string name="detect">Обнаружение</string>
+
+    <!-- Identification activity -->
+    <string name="identify">Идентифицировать</string>
+    <string name="manage_person_groups">Управлять[...]</string>
+    <string name="person_groups">Группа персон</string>
+    <string name="target_image">Фотография</string>
+    <string name="faces">Лица на изображении</string>
+
+    <!-- Common in all activities -->
+    <string name="progress_dialog_title">Пожалуйста подождите</string>
+
+    <!-- Warning messages -->
+    <string name="person_name_empty_warning_message">Нужно указать имя персоны</string>
+    <string name="no_face_to_group">Нет фотографий лиц для группировки</string>
+    <string name="no_person_group_selected_for_identification_warning">Не выбраны группы персон</string>
+    <string name="face_cannot_be_identified">Неизвестная персона</string>
+    <string name="user_provided_person_name">Имя персоны</string>
+    <string name="user_provided_description_data">Данные пользователя</string>
+    <string name="user_provided_person_group_name">Название группы персон</string>
+    <string name="user_provided_person_group_description_data">Данные пользователя</string>
+
+    <!-- Person group management activities -->
+    <string name="delete">Удалить</string>
+    <string name="done_and_save">Сохранить</string>
+
+    <string name="person_group_list">Список персон группы</string>
+    <string name="person_group_list_tip">- Нажмите на группу для редактирования. - Длительное нажатие для удаления</string>
+    <string name="add_person_group">Добавить группу персон</string>
+
+    <string name="person_group">Группа персон</string>
+    <string name="person_group_tip">- Нажмите на персону для редактирования. - Длительное нажатие для удаления.</string>
+    <string name="person_group_name">Название группы персон:</string>
+    <string name="type_in_person_group_name_tip">Имя(не более 30 символов)</string>
+    <string name="add_person">Добавить персону</string>
+
+    <string name="person">Персона</string>
+    <string name="persons">Персоны</string>
+    <string name="person_tip">- Длительное нажатие на лицо для удаления.</string>
+    <string name="type_in_person_name_tip">Имя(не более 30 символов)</string>
+    <string name="add_face">Добавить лицо</string>
+    <string name="person_name">Имя персоны:</string>
+    <string name="add_face_to_person">Добавить лица для персоны:</string>
+    <string name="select_face_tip">Выбрать изображения лиц персоны(если существует) по нажатию на галочку.</string>
+
+</resources>
