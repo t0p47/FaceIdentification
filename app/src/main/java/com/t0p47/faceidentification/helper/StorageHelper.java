@@ -9,11 +9,33 @@ import java.util.Set;
 
 public class StorageHelper {
 
+    public static String getPersonGroupId(Context context) {
+        SharedPreferences personGroupIdSet =
+                context.getSharedPreferences("PersonGroupId", Context.MODE_PRIVATE);
+        return personGroupIdSet.getString("PersonGroupId", "");
+    }
+
     public static Set<String> getAllPersonIds(String personGroupId, Context context){
         SharedPreferences personIdSet =
                 context.getSharedPreferences(personGroupId+"PersonIdSet", Context.MODE_PRIVATE);
 
         return personIdSet.getStringSet("PersonIdSet", new HashSet<String>());
+    }
+
+    public static void setPersonGroupName(String personGroupIdToAdd, String personGroupName, Context context) {
+        SharedPreferences personGroupIdNameMap =
+                context.getSharedPreferences("PersonGroupIdNameMap", Context.MODE_PRIVATE);
+
+        SharedPreferences.Editor personGroupIdNameMapEditor = personGroupIdNameMap.edit();
+        personGroupIdNameMapEditor.putString(personGroupIdToAdd, personGroupName);
+        personGroupIdNameMapEditor.commit();
+
+
+        SharedPreferences personGroupId =
+                context.getSharedPreferences("PersonGroupId", Context.MODE_PRIVATE);
+        SharedPreferences.Editor personGroupIdEditor = personGroupId.edit();
+        personGroupIdEditor.putString("PersonGroupId", personGroupIdToAdd);
+        personGroupIdEditor.commit();
     }
 
     public static String getPersonName(String personId, Context context){

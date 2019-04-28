@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -55,6 +56,8 @@ public class PersonGroupActivity extends AppCompatActivity {
             try{
                 publishProgress("Syncing with server to add person group...");
 
+                Log.d("LOG_TAG","PersonGroupActivity(My): "+params[0]);
+
                 //Start creating person group in server
                 faceServiceClient.createLargePersonGroup(
                         params[0],
@@ -89,12 +92,17 @@ public class PersonGroupActivity extends AppCompatActivity {
                 gridView.setAdapter(personGridViewAdapter);
 
                 if(mAddPerson){
+                    Log.d("LOG_TAG", "PersonGroupActivity: group added, add person");
                     addPerson();
                 }else{
+                    Log.d("LOG_TAG", "PersonGroupActivity: group added, doneAndSave");
                     doneAndSave(false);
                 }
 
+            }else{
+                Log.d("LOG_TAG", "PersonGroupActivity: NO RESULT!");
             }
+
         }
     }
 
@@ -185,8 +193,10 @@ public class PersonGroupActivity extends AppCompatActivity {
 
     public void addPerson(View view){
         if(!personGroupExists){
+            Log.d("LOG_TAG","PersonGroupActivity: addPersonGroupTask");
             new AddPersonGroupTask(true).execute("0");
         }else{
+            Log.d("LOG_TAG","PersonGroupActivity: simply addPerson");
             addPerson();
         }
     }
@@ -321,9 +331,27 @@ public class PersonGroupActivity extends AppCompatActivity {
         gridView.setAdapter(personGridViewAdapter);
     }
 
+    public void doneAndSave(View view) {
+        if (!personGroupExists) {
+            new AddPersonGroupTask(false).execute(personGroupId);
+        } else {
+            doneAndSave(true);
+        }
+    }
+
     public void doneAndSave(boolean trainPersonGroup){
 
+        EditText editTextPersonGroupName = (EditText)findViewById(R.id.edit_person_group_name);
+        String newPersonGroupName = editTextPersonGroupName.getText().toString();
+        if (newPersonGroupName.equals("")) {
+            Log.d("LOG_TAG", "PersonGroupActivity: Person group name could not be empty");
+            return;
+        }
+
+        StorageHelper.setPersonGroupName(personGroupId, newPersonGroupName, PersonGroupActivity.this);
+
         if(trainPersonGroup){
+            Log.d("LOG_TAG", "PersonGroupActivity: trainPersonGroup");
             new TrainPersonGroupTask().execute(personGroupId);
         }else{
             finish();
