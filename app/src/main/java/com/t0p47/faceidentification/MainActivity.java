@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
                 return  params[0];
             }catch(Exception e){
                 publishProgress(e.getMessage());
+                Log.d("LOG_TAG", "MainActivity: group add error: "+e.getMessage());
                 return null;
             }
         }
@@ -67,12 +68,14 @@ public class MainActivity extends AppCompatActivity {
             if(result != null){
 
                 if(mAddPerson){
-                    Log.d("LOG_TAG", "MainActivity: group added, add person");
+                    Log.d("LOG_TAG", "MainActivity: group added, add person: "+result);
                     //addPerson();
                 }else{
-                    Log.d("LOG_TAG", "MainActivity: group added, doneAndSave");
-                    //doneAndSave(false);
+                    Log.d("LOG_TAG", "MainActivity: group added, doneAndSave: "+result);
+                    doneAndSave();
                 }
+
+
 
             }else{
                 Log.d("LOG_TAG", "MainActivity: NO RESULT!");
@@ -81,6 +84,46 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    class TrainPersonGroupTask extends AsyncTask<String, String, String>{
+
+        @Override
+        protected String doInBackground(String... params){
+
+            FaceServiceClient faceServiceClient = IdentificationApp.getFaceServiceClient();
+
+            try{
+                publishProgress("Training person group...");
+
+                Log.d("LOG_TAG","MainActivity: train "+params[0]);
+                faceServiceClient.trainLargePersonGroup(params[0]);
+                return params[0];
+            }catch (Exception e){
+                Log.d("LOG_TAG","MainActivity: trainError: "+e.getMessage());
+                publishProgress(e.getMessage());
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPreExecute(){
+            setUiBeforeBackgroundTask();
+        }
+
+        @Override
+        protected void onProgressUpdate(String... progress){
+            setUiDuringBackgroundTask(progress[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String result){
+            if(result != null){
+                Log.d("LOG_TAG","MainActivity: train large group result: "+result);
+                finish();
+            }
+        }
+    }
+
+    private static String TAG = "LOG_TAG";
 
     String personGroupId;
     ProgressDialog progressDialog;
@@ -101,6 +144,8 @@ public class MainActivity extends AppCompatActivity {
         progressDialog = new ProgressDialog(this);
         progressDialog.setTitle(getString(R.string.progress_dialog_title));
 
+        Log.d(TAG, "MainActivity: applicationId: "+BuildConfig.APPLICATION_ID);
+
         personGroupId = StorageHelper.getPersonGroupId(this);
         if(personGroupId.isEmpty()){
             Log.d("LOG_TAG","MainActivity: no personGroupId, create new");
@@ -116,10 +161,15 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void doneAndSave(){
+        new TrainPersonGroupTask().execute(personGroupId);
+    }
+
     public void ManagePersonGroup(View view){
 
 
-        Intent intent = new Intent(this, PersonActivity.class);
+
+        Intent intent = new Intent(this, PersonGroupActivity.class);
         intent.putExtra("AddNewPersonGroup", true);
         intent.putExtra("PersonGroupName", "");
         intent.putExtra("PersonGroupId", personGroupId);
@@ -127,6 +177,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void IdentificatePersonByPhoto(View view){
-        startActivity(new Intent(this, IdentificationActivity.class));
+
+        Intent intent = new Intent(this, IdentificationActivity.class);
+        intent.putExtra("PersonGroupId", personGroupId);
+        startActivity(intent);
     }
 }

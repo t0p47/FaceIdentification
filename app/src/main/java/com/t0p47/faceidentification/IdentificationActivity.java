@@ -6,8 +6,10 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -41,7 +43,6 @@ import java.util.UUID;
 
 public class IdentificationActivity extends AppCompatActivity {
 
-    private static final int REQUEST_SELECT_IMAGE = 0;
     private static final int REQUEST_TAKE_PHOTO = 1;
 
     private static final String TAG = "LOG_TAG";
@@ -62,8 +63,11 @@ public class IdentificationActivity extends AppCompatActivity {
     private class IdentificationTask extends AsyncTask<UUID, String, IdentifyResult[]>{
 
         private boolean mSucceed = true;
+        String mPersonGroupId;
 
-        IdentificationTask(){}
+        IdentificationTask(String personGroupId){
+            this.mPersonGroupId = personGroupId;
+        }
 
         @Override
         protected IdentifyResult[] doInBackground(UUID... params){
@@ -73,7 +77,7 @@ public class IdentificationActivity extends AppCompatActivity {
                 publishProgress("Получение группы сотрудников...");
 
                 TrainingStatus trainingStatus = faceServiceClient.getLargePersonGroupTrainingStatus(
-                        "0");
+                        this.mPersonGroupId);
                 if (trainingStatus.status != TrainingStatus.Status.Succeeded) {
                     publishProgress("Статус подготовки фотографий сотрудников " + trainingStatus.status);
                     mSucceed = false;
@@ -83,7 +87,7 @@ public class IdentificationActivity extends AppCompatActivity {
                 publishProgress("Идентификация...");
 
                 return faceServiceClient.identityInLargePersonGroup(
-                        "0",
+                        this.mPersonGroupId,
                         params,
                         1);
             }catch (Exception e){
@@ -120,6 +124,11 @@ public class IdentificationActivity extends AppCompatActivity {
 
         progressDialog = new ProgressDialog(this);
         progressDialog.setTitle(getString(R.string.progress_dialog_title));
+
+        Bundle bundle = getIntent().getExtras();
+        if(bundle != null){
+            mPersonGroupId = bundle.getString("PersonGroupId");
+        }
     }
 
     public void onResume(){
@@ -363,7 +372,14 @@ public class IdentificationActivity extends AppCompatActivity {
             File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
             try{
                 File file = File.createTempFile("IMG_", ".jpg", storageDir);
+                /*if(Build.VERSION.SDK_INT >= 24){
+                    Context context = IdentificationActivity.this;
+                    mUriPhotoTaken = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + "com.t0p47.faceidentification.provider", file);
+                }else{
+                    mUriPhotoTaken = Uri.fromFile(file);
+                }*/
                 mUriPhotoTaken = Uri.fromFile(file);
+
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, mUriPhotoTaken);
                 startActivityForResult(intent, REQUEST_TAKE_PHOTO);
             }catch(IOException e){
@@ -382,7 +398,7 @@ public class IdentificationActivity extends AppCompatActivity {
 
             setAllButtonsEnabledStatus(false);
 
-            new IdentificationTask().execute(
+            new IdentificationTask(mPersonGroupId).execute(
                     faceIds.toArray(new UUID[faceIds.size()]));
         }else{
             setInfo("Пожалуйста сделайте фотографию лица");
@@ -535,7 +551,7 @@ public class IdentificationActivity extends AppCompatActivity {
                     String personId =
                             mIdentifyResults.get(position).candidates.get(0).personId.toString();
                     String personName = StorageHelper.getPersonName(
-                            personId, IdentificationActivity.this
+                            personId, mPersonGroupId,IdentificationActivity.this
                     );
 
                     String identity = "Сотрудник: "+personName+"\n"

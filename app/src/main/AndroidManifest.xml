@@ -30,6 +30,16 @@
         <meta-data
             android:name="io.fabric.ApiKey"
             android:value="06c0dd105572d5a6acdcd8ee68be13245afc8bf8" />
+        <provider
+            android:name=".helper.GenericFileProvider"
+            android:authorities="com.t0p47.faceidentification.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/provider_paths"/>
+        </provider>
+
     </application>
 
 </manifest>

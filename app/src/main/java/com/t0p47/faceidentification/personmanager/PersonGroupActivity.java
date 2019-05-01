@@ -192,13 +192,15 @@ public class PersonGroupActivity extends AppCompatActivity {
     }
 
     public void addPerson(View view){
-        if(!personGroupExists){
+        /*if(!personGroupExists){
             Log.d("LOG_TAG","PersonGroupActivity: addPersonGroupTask");
             new AddPersonGroupTask(true).execute("0");
         }else{
             Log.d("LOG_TAG","PersonGroupActivity: simply addPerson");
             addPerson();
-        }
+        }*/
+        Log.d("LOG_TAG","PersonGroupActivity: simply addPerson");
+        addPerson();
     }
 
     private void addPerson(){
@@ -206,7 +208,7 @@ public class PersonGroupActivity extends AppCompatActivity {
         Intent intent = new Intent(this, PersonActivity.class);
         intent.putExtra("AddNewPerson", true);
         intent.putExtra("PersonName","");
-        intent.putExtra("PersonGroupId", "0");
+        intent.putExtra("PersonGroupId", personGroupId);
         startActivity(intent);
 
     }
@@ -266,7 +268,7 @@ public class PersonGroupActivity extends AppCompatActivity {
                 gridView.setAdapter(personGridViewAdapter);
 
                 Button addNewItem = (Button)findViewById(R.id.add_person);
-                addNewItem.setEnabled(false);
+                addNewItem.setEnabled(true);
 
                 return true;
             }
@@ -310,12 +312,13 @@ public class PersonGroupActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 if(!personGridViewAdapter.longPressed){
                     String personId = personGridViewAdapter.personIdList.get(position);
-                    String personName = StorageHelper.getPersonName(personId, PersonGroupActivity.this);
+                    String personName = StorageHelper.getPersonName(personId, personGroupId,  PersonGroupActivity.this);
 
                     Intent intent = new Intent(PersonGroupActivity.this, PersonActivity.class);
                     intent.putExtra("AddNewPerson", false);
                     intent.putExtra("PersonName", personName);
                     intent.putExtra("PersonId", personId);
+                    intent.putExtra("PersonGroupId", personGroupId);
                     startActivity(intent);
                 }
             }
@@ -332,16 +335,17 @@ public class PersonGroupActivity extends AppCompatActivity {
     }
 
     public void doneAndSave(View view) {
-        if (!personGroupExists) {
+        /*if (!personGroupExists) {
             new AddPersonGroupTask(false).execute(personGroupId);
         } else {
             doneAndSave(true);
-        }
+        }*/
+        doneAndSave(true);
     }
 
     public void doneAndSave(boolean trainPersonGroup){
 
-        EditText editTextPersonGroupName = (EditText)findViewById(R.id.edit_person_group_name);
+        /*EditText editTextPersonGroupName = (EditText)findViewById(R.id.edit_person_group_name);
         String newPersonGroupName = editTextPersonGroupName.getText().toString();
         if (newPersonGroupName.equals("")) {
             Log.d("LOG_TAG", "PersonGroupActivity: Person group name could not be empty");
@@ -355,7 +359,9 @@ public class PersonGroupActivity extends AppCompatActivity {
             new TrainPersonGroupTask().execute(personGroupId);
         }else{
             finish();
-        }
+        }*/
+
+        finish();
     }
 
     private void deleteSelectedItems(){
@@ -391,7 +397,7 @@ public class PersonGroupActivity extends AppCompatActivity {
             personIdList = new ArrayList<>();
             personChecked = new ArrayList<>();
 
-            Set<String> personIdSet = StorageHelper.getAllPersonIds("0",PersonGroupActivity.this);
+            Set<String> personIdSet = StorageHelper.getAllPersonIds(personGroupId,PersonGroupActivity.this);
             for (String personId: personIdSet){
                 personIdList.add(personId);
                 personChecked.add(false);
@@ -435,7 +441,9 @@ public class PersonGroupActivity extends AppCompatActivity {
             }
 
             //Set the text of the item
-            String personName = StorageHelper.getPersonName(personId, PersonGroupActivity.this);
+            String personName = StorageHelper.getPersonName(personId, personGroupId,PersonGroupActivity.this);
+            Log.d("LOG_TAG", "PersonGroupActivity: get person name from storage by id: "+personId
+                +", groupId: "+personGroupId+", name: "+personName);
             ((TextView)convertView.findViewById(R.id.text_person)).setText(personName);
 
             //Set the checked status of the item

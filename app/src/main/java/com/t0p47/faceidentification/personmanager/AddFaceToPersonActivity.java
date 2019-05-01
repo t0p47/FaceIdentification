@@ -219,7 +219,8 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
         if(bundle != null){
             mPersonId = bundle.getString("PersonId");
             mPersonGroupId = bundle.getString("PersonGroupId");
-            mImageUriStr = bundle.getString("ImageUriSt");
+            mImageUriStr = bundle.getString("ImageUriStr");
+            Log.d("LOG_TAG", "AddFaceToPersonActivity: mImageUriStr: "+mImageUriStr);
         }
 
         mProgressDialog = new ProgressDialog(this);
@@ -272,7 +273,9 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
 
             if(faceIndices.size() > 0){
                 new AddFaceTask(faceIndices).execute();
+                Log.d("LOG_TAG","AddFaceToPersonActivity: after training group with id: "+mPersonGroupId);
             }else{
+
                 finish();
             }
         }

@@ -5,10 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.ActionMode;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -32,6 +34,8 @@ import com.t0p47.faceidentification.R;
 import com.t0p47.faceidentification.helper.IdentificationApp;
 import com.t0p47.faceidentification.helper.StorageHelper;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -81,11 +85,12 @@ public class PersonActivity extends AppCompatActivity {
             if(result != null){
 
                 personId = result;
+                Log.d("LOG_TAG","PersonActivity: personId of added person "+personId);
 
                 if(mAddFace){
                     addFace();
                 }else{
-                    doneAndSave();
+                    doneAndTrain();
                 }
             }
         }
@@ -140,6 +145,45 @@ public class PersonActivity extends AppCompatActivity {
         }
     }
 
+    class TrainPersonGroupTask extends AsyncTask<String, String, String>{
+
+        @Override
+        protected String doInBackground(String... params){
+
+            FaceServiceClient faceServiceClient = IdentificationApp.getFaceServiceClient();
+
+            try{
+                publishProgress("Training person group...");
+
+                Log.d("LOG_TAG","PersonActivity: train "+params[0]);
+                faceServiceClient.trainLargePersonGroup(params[0]);
+                return params[0];
+            }catch (Exception e){
+                Log.d("LOG_TAG","PersonActivity: trainError: "+e.getMessage());
+                publishProgress(e.getMessage());
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPreExecute(){
+            setUiBeforeBackgroundTask();
+        }
+
+        @Override
+        protected void onProgressUpdate(String... progress){
+            setUiDuringBackgroundTask(progress[0]);
+        }
+
+        @Override
+        protected void onPostExecute(String result){
+            if(result != null){
+                Log.d("LOG_TAG","PersonActivity: train large group result: "+result);
+                finish();
+            }
+        }
+    }
+
     private void setUiBeforeBackgroundTask(){
         progressDialog.show();
     }
@@ -153,6 +197,7 @@ public class PersonActivity extends AppCompatActivity {
     String personId;
     String personGroupId;
     String oldPersonName;
+    private Uri mUriPhotoTaken;
 
     private static final int REQUEST_SELECT_IMAGE = 0;
 
@@ -283,7 +328,7 @@ public class PersonActivity extends AppCompatActivity {
         if(personId == null){
             new AddPersonTask(false).execute(personGroupId);
         }else{
-            doneAndSave();
+            doneAndTrain();
         }
     }
 
@@ -295,7 +340,7 @@ public class PersonActivity extends AppCompatActivity {
         }
     }
 
-    private void doneAndSave(){
+    private void doneAndTrain(){
 
         TextView textWarning = (TextView)findViewById(R.id.info);
         EditText editeTextPersonName = (EditText)findViewById(R.id.edit_person_name);
@@ -304,31 +349,32 @@ public class PersonActivity extends AppCompatActivity {
             textWarning.setText(R.string.person_name_empty_warning_message);
         }
 
+        Log.d("LOG_TAG","PersonActivity: setPersonName: personId: "+ personId
+            + ", newPersonName: "+newPersonName+", personGroupId: "+personGroupId);
         StorageHelper.setPersonName(personId, newPersonName, personGroupId, PersonActivity.this);
 
-        finish();
+        new TrainPersonGroupTask().execute(personGroupId);
+
+        //finish();
     }
-
-    /*
-    * Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if(intent.resolveActivity(getPackageManager()) != null){
-
-            File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-            try{
-                File file = File.createTempFile("IMG_", ".jpg", storageDir);
-                mUriPhotoTaken = Uri.fromFile(file);
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, mUriPhotoTaken);
-                startActivityForResult(intent, REQUEST_TAKE_PHOTO);
-            }catch(IOException e){
-                setInfo(e.getMessage());
-            }
-        }
-    * */
 
     private void addFace(){
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if(intent.resolveActivity(getPackageManager()) != null){
-            startActivityForResult(intent, REQUEST_SELECT_IMAGE);
+            //startActivityForResult(intent, REQUEST_SELECT_IMAGE);
+
+            File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+            try{
+                File file = File.createTempFile("IMG_", ".jpg", storageDir);
+
+                mUriPhotoTaken = Uri.fromFile(file);
+
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, mUriPhotoTaken);
+                startActivityForResult(intent, REQUEST_SELECT_IMAGE);
+            }catch(IOException e){
+                Log.d("LOG_TAG","PersonActivity: " + e.getMessage());
+            }
+
         }
     }
 
@@ -337,11 +383,21 @@ public class PersonActivity extends AppCompatActivity {
         switch (requestCode){
             case REQUEST_SELECT_IMAGE:
                 if(resultCode == RESULT_OK){
-                    Uri uriImagePicked = data.getData();
+                    //Uri uriImagePicked = data.getData();
+
+                    Uri imageUri;
+                    if(data == null || data.getData() == null){
+                        imageUri = mUriPhotoTaken;
+                    }else{
+                        imageUri = data.getData();
+                    }
+
+
                     Intent intent = new Intent(this, AddFaceToPersonActivity.class);
                     intent.putExtra("PersonId", personId);
                     intent.putExtra("PersonGroupId", personGroupId);
-                    intent.putExtra("ImageUriStr", uriImagePicked.toString());
+                    Log.d("LOG_TAG", "PersonActivity: mImageUriStr: "+imageUri.toString());
+                    intent.putExtra("ImageUriStr", imageUri.toString());
                     startActivity(intent);
                 }
                 break;

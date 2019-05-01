@@ -38,10 +38,10 @@ public class StorageHelper {
         personGroupIdEditor.commit();
     }
 
-    public static String getPersonName(String personId, Context context){
+    public static String getPersonName(String personId, String personGroupId, Context context){
 
         SharedPreferences personIdNameMap=
-                context.getSharedPreferences("PersonIdNameMap", Context.MODE_PRIVATE);
+                context.getSharedPreferences(personGroupId+"PersonIdNameMap", Context.MODE_PRIVATE);
         return personIdNameMap.getString(personId, "");
 
     }
