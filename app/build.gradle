@@ -20,7 +20,7 @@ android {
     compileSdkVersion 28
     defaultConfig {
         applicationId "com.t0p47.faceidentification"
-        minSdkVersion 22
+        minSdkVersion 24
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
@@ -50,4 +50,10 @@ dependencies {
     implementation 'com.microsoft.projectoxford:face:1.4.4'
     implementation 'com.google.code.gson:gson:2.8.5'
     implementation 'com.crashlytics.sdk.android:crashlytics:2.9.9'
+
+    implementation "android.arch.persistence.room:runtime:1.1.1"
+    annotationProcessor "android.arch.persistence.room:compiler:1.1.1"
+    implementation "android.arch.persistence.room:rxjava2:1.1.1"
+    implementation 'io.reactivex.rxjava2:rxandroid:2.0.1'
+    implementation 'io.reactivex.rxjava2:rxjava:2.1.1'
 }

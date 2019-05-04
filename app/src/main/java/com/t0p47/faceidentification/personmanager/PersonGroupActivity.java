@@ -29,14 +29,22 @@ import android.widget.TextView;
 
 import com.microsoft.projectoxford.face.FaceServiceClient;
 import com.t0p47.faceidentification.R;
+import com.t0p47.faceidentification.db.AppDatabase;
+import com.t0p47.faceidentification.db.dao.subsets.Name;
 import com.t0p47.faceidentification.helper.IdentificationApp;
-import com.t0p47.faceidentification.helper.StorageHelper;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+
+import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.DisposableSingleObserver;
+import io.reactivex.schedulers.Schedulers;
 
 public class PersonGroupActivity extends AppCompatActivity {
 
@@ -218,6 +226,10 @@ public class PersonGroupActivity extends AppCompatActivity {
     String personGroupId;
     String oldPersonGroupName;
 
+    private static final String TAG = "LOG_TAG";
+
+    AppDatabase db = IdentificationApp.getInstance().getDatabase();
+
     PersonGridViewAdapter personGridViewAdapter;
 
     ProgressDialog progressDialog;
@@ -239,9 +251,6 @@ public class PersonGroupActivity extends AppCompatActivity {
 
         progressDialog = new ProgressDialog(this);
         progressDialog.setTitle(getString(R.string.progress_dialog_title));
-
-        EditText editTextPersonGroupName = (EditText)findViewById(R.id.edit_person_group_name);
-        editTextPersonGroupName.setText(oldPersonGroupName);
     }
 
     private void initializeGridView(){
@@ -312,11 +321,29 @@ public class PersonGroupActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 if(!personGridViewAdapter.longPressed){
                     String personId = personGridViewAdapter.personIdList.get(position);
-                    String personName = StorageHelper.getPersonName(personId, personGroupId,  PersonGroupActivity.this);
+                    //String personName = StorageHelper.getPersonName(personId, personGroupId,  PersonGroupActivity.this);
+
+                    final String[] personName = new String[1];
+
+                    db.personDao().getNameById(personId)
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new DisposableSingleObserver<Name>() {
+                                @Override
+                                public void onSuccess(Name name) {
+                                    Log.d(TAG, "PersonGroupActivity: onSuccess getNameById: "+name.firstName);
+                                    personName[0] = name.firstName;
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    Log.d(TAG, "PersonGroupActivity: onSuccess getNameById: "+e.getMessage());
+                                }
+                            });
 
                     Intent intent = new Intent(PersonGroupActivity.this, PersonActivity.class);
                     intent.putExtra("AddNewPerson", false);
-                    intent.putExtra("PersonName", personName);
+                    intent.putExtra("PersonName", personName[0]);
                     intent.putExtra("PersonId", personId);
                     intent.putExtra("PersonGroupId", personGroupId);
                     startActivity(intent);
@@ -379,11 +406,42 @@ public class PersonGroupActivity extends AppCompatActivity {
             }
         }
 
-        StorageHelper.deletePersons(personIdsToDelete, "0", this);
+        //StorageHelper.deletePersons(personIdsToDelete, personGroupId, this);
 
-        personGridViewAdapter.personIdList = newPersonIdList;
-        personGridViewAdapter.personChecked = newPersonChecked;
-        personGridViewAdapter.notifyDataSetChanged();
+        //Completable.fromAction(() -> db.personDao().deletePersons(personIdsToDelete));
+        Callable<Integer> clbDeletePersons = new Callable<Integer>(){
+
+            @Override
+            public Integer call() throws Exception {
+                int deleteCountRes = db.personDao().deletePersons(personIdsToDelete);
+                Log.d(TAG,"PersonGroupActivity: deletePersonCountRes: "+deleteCountRes);
+                return deleteCountRes;
+            }
+        };
+        Completable.fromCallable(clbDeletePersons)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                        Log.d(TAG,"PersonGroupActivity: onSubscribe DeletePersons: "+d.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d(TAG,"PersonGroupActivity: onComplete DeletePersons: ");
+                        personGridViewAdapter.personIdList = newPersonIdList;
+                        personGridViewAdapter.personChecked = newPersonChecked;
+                        personGridViewAdapter.notifyDataSetChanged();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.d(TAG,"PersonGroupActivity: onError DeletePersons: "+e.getMessage());
+                    }
+                });
+
+
     }
 
     private class PersonGridViewAdapter extends BaseAdapter{
@@ -397,8 +455,27 @@ public class PersonGroupActivity extends AppCompatActivity {
             personIdList = new ArrayList<>();
             personChecked = new ArrayList<>();
 
-            Set<String> personIdSet = StorageHelper.getAllPersonIds(personGroupId,PersonGroupActivity.this);
-            for (String personId: personIdSet){
+            //Set<String> personIdSet = StorageHelper.getAllPersonIds(personGroupId,PersonGroupActivity.this);
+
+            final List<String>[] receivedPersonIdList = new List[]{new ArrayList<>()};
+
+            db.personDao().getAllPersonIds()
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new DisposableSingleObserver<List<String>>() {
+                        @Override
+                        public void onSuccess(List<String> strings) {
+                            Log.d(TAG, "PersonGroupActivity: onSuccess getAllPersonIds: "+strings.size());
+                            receivedPersonIdList[0] = strings;
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.d(TAG, "PersonGroupActivity: onError getAllPersonIds: "+e.getMessage());
+                        }
+                    });
+
+            for (String personId: receivedPersonIdList[0]){
                 personIdList.add(personId);
                 personChecked.add(false);
             }
@@ -429,22 +506,77 @@ public class PersonGroupActivity extends AppCompatActivity {
             convertView.setId(position);
 
             String personId = personIdList.get(position);
-            Set<String> faceIdSet = StorageHelper.getAllFaceIds(personId, PersonGroupActivity.this);
+            //Set<String> faceIdSet = StorageHelper.getAllFaceIds(personId, PersonGroupActivity.this);
 
-            if(!faceIdSet.isEmpty()){
-                Iterator<String> it = faceIdSet.iterator();
-                Uri uri = Uri.parse(StorageHelper.getFaceUri(it.next(), PersonGroupActivity.this));
-                ((ImageView)convertView.findViewById(R.id.image_person)).setImageURI(uri);
+            final List<String>[] receivedFaceIdList = new List[]{new ArrayList<>()};
+
+            db.personDao().getAllFaceIds(personId)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new DisposableSingleObserver<List<String>>() {
+                        @Override
+                        public void onSuccess(List<String> strings) {
+                            Log.d(TAG,"PersonGroupActivity: onSuccess getAllFaceIds: "+strings.size());
+                            receivedFaceIdList[0] = strings;
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.d(TAG,"PersonGroupActivity: onError getAllFaceIds: "+e.getMessage());
+                        }
+                    });
+
+            if(!receivedFaceIdList[0].isEmpty()){
+                Iterator<String> it = receivedFaceIdList[0].iterator();
+                //Uri uri = Uri.parse(StorageHelper.getFaceUri(it.next(), PersonGroupActivity.this));
+                final Uri[] uri = new Uri[1];
+
+                db.faceDao().getFaceUri(it.next())
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(new DisposableSingleObserver<String>() {
+                            @Override
+                            public void onSuccess(String s) {
+                                Log.d(TAG, "PersonGroupActivity: onSuccess getFaceUri: "+s);
+                                uri[0] = Uri.parse(s);
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                Log.d(TAG, "PersonGroupActivity: onError getFaceUri: "+e.getMessage());
+                            }
+                        });
+
+
+                ((ImageView)convertView.findViewById(R.id.image_person)).setImageURI(uri[0]);
             }else{
                 Drawable drawable = getResources().getDrawable(R.drawable.select_image);
                 ((ImageView)convertView.findViewById(R.id.image_person)).setImageDrawable(drawable);
             }
 
             //Set the text of the item
-            String personName = StorageHelper.getPersonName(personId, personGroupId,PersonGroupActivity.this);
+            //String personName = StorageHelper.getPersonName(personId, personGroupId,PersonGroupActivity.this);
+            final String[] personName = new String[1];
+
+            db.personDao().getNameById(personId)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new DisposableSingleObserver<Name>() {
+                        @Override
+                        public void onSuccess(Name name) {
+                            Log.d(TAG,"PersonGroupActivity: onSuccess getNameById: "+name.firstName);
+                            personName[0] = name.firstName;
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.d(TAG,"PersonGroupActivity: onError getNameById: "+e.getMessage());
+                        }
+                    });
+
             Log.d("LOG_TAG", "PersonGroupActivity: get person name from storage by id: "+personId
-                +", groupId: "+personGroupId+", name: "+personName);
-            ((TextView)convertView.findViewById(R.id.text_person)).setText(personName);
+                +", groupId: "+personGroupId+", name: "+ personName[0]);
+            ((TextView)convertView.findViewById(R.id.text_person)).setText(personName[0]);
 
             //Set the checked status of the item
             CheckBox checkBox = (CheckBox) convertView.findViewById(R.id.checkbox_person);

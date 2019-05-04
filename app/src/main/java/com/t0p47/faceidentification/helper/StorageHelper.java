@@ -15,7 +15,7 @@ public class StorageHelper {
         return personGroupIdSet.getString("PersonGroupId", "");
     }
 
-    public static Set<String> getAllPersonIds(String personGroupId, Context context){
+    /*public static Set<String> getAllPersonIds(String personGroupId, Context context){
         SharedPreferences personIdSet =
                 context.getSharedPreferences(personGroupId+"PersonIdSet", Context.MODE_PRIVATE);
 
@@ -141,6 +141,6 @@ public class StorageHelper {
         SharedPreferences.Editor faceIdSetEditor = faceIdSet.edit();
         faceIdSetEditor.putStringSet("FaceIdSet", newFaceIds);
         faceIdSetEditor.commit();
-    }
+    }*/
 
 }

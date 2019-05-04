@@ -23,6 +23,7 @@ import com.microsoft.projectoxford.face.contract.AddPersistedFaceResult;
 import com.microsoft.projectoxford.face.contract.Face;
 import com.microsoft.projectoxford.face.contract.FaceRectangle;
 import com.t0p47.faceidentification.R;
+import com.t0p47.faceidentification.db.AppDatabase;
 import com.t0p47.faceidentification.helper.IdentificationApp;
 import com.t0p47.faceidentification.helper.ImageHelper;
 import com.t0p47.faceidentification.helper.StorageHelper;
@@ -37,6 +38,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+
+import io.reactivex.Completable;
 
 public class AddFaceToPersonActivity extends AppCompatActivity {
 
@@ -142,6 +145,8 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
         }
     }
 
+    AppDatabase db = IdentificationApp.getInstance().getDatabase();
+
     private void setUiBeforeBackgroundTask(){
         mProgressDialog.show();
     }
@@ -166,8 +171,16 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
                     fileOutputStream.flush();
 
                     Uri uri = Uri.fromFile(file);
-                    StorageHelper.setFaceUri(
-                            faceId, uri.toString(), mPersonId, AddFaceToPersonActivity.this);
+                    /*StorageHelper.setFaceUri(
+                            faceId, uri.toString(), mPersonId, AddFaceToPersonActivity.this);*/
+
+                    com.t0p47.faceidentification.db.entities.Face face = new com.t0p47.faceidentification.db.entities.Face();
+                    face.faceId = faceId;
+                    face.faceUri = uri.toString();
+                    face.personId = mPersonId;
+
+                    Completable.fromAction(() -> db.faceDao().insert(face));
+
                 }catch(Exception e){
                     Log.d("LOG_TAG", e.getMessage());
                 }finally{

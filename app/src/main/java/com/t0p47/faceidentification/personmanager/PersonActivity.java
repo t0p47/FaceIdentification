@@ -31,6 +31,8 @@ import android.widget.TextView;
 import com.microsoft.projectoxford.face.FaceServiceClient;
 import com.microsoft.projectoxford.face.contract.CreatePersonResult;
 import com.t0p47.faceidentification.R;
+import com.t0p47.faceidentification.db.AppDatabase;
+import com.t0p47.faceidentification.db.entities.Person;
 import com.t0p47.faceidentification.helper.IdentificationApp;
 import com.t0p47.faceidentification.helper.StorageHelper;
 
@@ -40,6 +42,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+
+import io.reactivex.Completable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.observers.DisposableSingleObserver;
+import io.reactivex.schedulers.Schedulers;
 
 public class PersonActivity extends AppCompatActivity {
 
@@ -193,11 +200,15 @@ public class PersonActivity extends AppCompatActivity {
         progressDialog.setMessage(progress);
     }
 
+    private static final String TAG = "LOG_TAG";
+
     boolean addNewPerson;
     String personId;
     String personGroupId;
     String oldPersonName;
     private Uri mUriPhotoTaken;
+
+    AppDatabase db = IdentificationApp.getInstance().getDatabase();
 
     private static final int REQUEST_SELECT_IMAGE = 0;
 
@@ -351,7 +362,16 @@ public class PersonActivity extends AppCompatActivity {
 
         Log.d("LOG_TAG","PersonActivity: setPersonName: personId: "+ personId
             + ", newPersonName: "+newPersonName+", personGroupId: "+personGroupId);
-        StorageHelper.setPersonName(personId, newPersonName, personGroupId, PersonActivity.this);
+        //StorageHelper.setPersonName(personId, newPersonName, personGroupId, PersonActivity.this);
+
+        Person newPerson = new Person();
+        newPerson.counter = 0;
+        newPerson.firstName = newPersonName;
+        newPerson.PassportNumber = "5014775864";
+        newPerson.personId = personId;
+
+        Completable.fromAction(() -> db.personDao().insertPerson(newPerson));
+
 
         new TrainPersonGroupTask().execute(personGroupId);
 
@@ -422,7 +442,9 @@ public class PersonActivity extends AppCompatActivity {
             }
         }
 
-        StorageHelper.deleteFaces(faceIdsToDelete,personId, this);
+        //StorageHelper.deleteFaces(faceIdsToDelete,personId, this);
+
+        Completable.fromAction(() -> db.faceDao().deleteFaces(faceIdsToDelete));
 
         faceGridViewAdapter.faceIdList = newFaceIdList;
         faceGridViewAdapter.faceChecked= newFaceChecked;
@@ -439,8 +461,26 @@ public class PersonActivity extends AppCompatActivity {
             faceIdList = new ArrayList<>();
             faceChecked = new ArrayList<>();
 
-            Set<String> faceIdSet = StorageHelper.getAllFaceIds(personId, PersonActivity.this);
-            for(String faceId: faceIdSet){
+            //Set<String> faceIdSet = StorageHelper.getAllFaceIds(personId, PersonActivity.this);
+            final List<String>[] receivedFaceIdList = new List[]{new ArrayList<>()};
+
+            db.personDao().getAllFaceIds(personId)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new DisposableSingleObserver<List<String>>() {
+                        @Override
+                        public void onSuccess(List<String> strings) {
+                            Log.d(TAG, "PersonActivity: onSuccess getAllFaceIds: "+strings.size());
+                            receivedFaceIdList[0] = strings;
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.d(TAG, "PersonActivity: onError getAllFaceIds: "+e.getMessage());
+                        }
+                    });
+
+            for(String faceId: receivedFaceIdList[0]){
                 faceIdList.add(faceId);
                 faceChecked.add(false);
             }
@@ -471,9 +511,28 @@ public class PersonActivity extends AppCompatActivity {
             }
             convertView.setId(position);
 
-            Uri uri =Uri.parse(StorageHelper.getFaceUri(
-                    faceIdList.get(position), PersonActivity.this));
-            ((ImageView)convertView.findViewById(R.id.image_face)).setImageURI(uri);
+            /*Uri uri =Uri.parse(StorageHelper.getFaceUri(
+                    faceIdList.get(position), PersonActivity.this));*/
+
+            final Uri[] uri = new Uri[1];
+
+            db.faceDao().getFaceUri(faceIdList.get(position))
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new DisposableSingleObserver<String>() {
+                        @Override
+                        public void onSuccess(String s) {
+                            Log.d(TAG,"PersonActivity: onSuccess getFaceUri: "+s);
+                            uri[0] = Uri.parse(s);
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            Log.d(TAG,"PersonActivity: onSuccess getFaceUri: "+e.getMessage());
+                        }
+                    });
+
+            ((ImageView)convertView.findViewById(R.id.image_face)).setImageURI(uri[0]);
 
             //Set the checked status of the item
             CheckBox checkBox = (CheckBox)convertView.findViewById(R.id.checkbox_face);
@@ -492,10 +551,6 @@ public class PersonActivity extends AppCompatActivity {
             }
 
             return convertView;
-
-
         }
-
-
     }
 }

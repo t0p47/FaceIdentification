@@ -26,6 +26,8 @@ import com.microsoft.projectoxford.face.FaceServiceClient;
 import com.microsoft.projectoxford.face.contract.Face;
 import com.microsoft.projectoxford.face.contract.IdentifyResult;
 import com.microsoft.projectoxford.face.contract.TrainingStatus;
+import com.t0p47.faceidentification.db.AppDatabase;
+import com.t0p47.faceidentification.db.dao.subsets.Name;
 import com.t0p47.faceidentification.helper.IdentificationApp;
 import com.t0p47.faceidentification.helper.ImageHelper;
 import com.t0p47.faceidentification.helper.StorageHelper;
@@ -40,6 +42,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.observers.DisposableSingleObserver;
 
 public class IdentificationActivity extends AppCompatActivity {
 
@@ -58,6 +63,8 @@ public class IdentificationActivity extends AppCompatActivity {
     ProgressDialog progressDialog;
 
     private Bitmap mBitmap;
+
+    AppDatabase db = IdentificationApp.getInstance().getDatabase();
 
 
     private class IdentificationTask extends AsyncTask<UUID, String, IdentifyResult[]>{
@@ -550,11 +557,29 @@ public class IdentificationActivity extends AppCompatActivity {
                 if(mIdentifyResults.get(position).candidates.size() > 0){
                     String personId =
                             mIdentifyResults.get(position).candidates.get(0).personId.toString();
-                    String personName = StorageHelper.getPersonName(
-                            personId, mPersonGroupId,IdentificationActivity.this
-                    );
 
-                    String identity = "Сотрудник: "+personName+"\n"
+                    /*String personName = StorageHelper.getPersonName(
+                            personId, mPersonGroupId,IdentificationActivity.this
+                    );*/
+                    final String[] personName = {null};
+                    db.personDao().getNameById(personId)
+                            .subscribeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new DisposableSingleObserver<Name>() {
+                                @Override
+                                public void onSuccess(Name name) {
+                                    Log.d(TAG,"IdentificationActivity: onSuccess getNameById: "+name.firstName);
+                                    personName[0] = name.firstName+" "+name.lastName;
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    Log.d(TAG,"IdentificationActivity: onError getNameById: "+e.getMessage());
+                                }
+                            });
+
+
+
+                    String identity = "Сотрудник: "+ personName[0] +"\n"
                             +"Соответствие: "+formatter.format(
                                     mIdentifyResults.get(position).candidates.get(0).confidence
                     );
