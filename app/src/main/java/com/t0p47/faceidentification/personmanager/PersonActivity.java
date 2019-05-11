@@ -42,9 +42,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 
 import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.observers.DisposableSingleObserver;
 import io.reactivex.schedulers.Schedulers;
 
@@ -206,11 +209,16 @@ public class PersonActivity extends AppCompatActivity {
     String personId;
     String personGroupId;
     String oldPersonName;
+
+    String receivedFaceUri;
+    String receivedFaceId;
+
     private Uri mUriPhotoTaken;
 
     AppDatabase db = IdentificationApp.getInstance().getDatabase();
 
     private static final int REQUEST_SELECT_IMAGE = 0;
+    private static final int REQUEST_ADD_FACE = 1;
 
     FaceGridViewAdapter faceGridViewAdapter;
 
@@ -369,13 +377,48 @@ public class PersonActivity extends AppCompatActivity {
         newPerson.firstName = newPersonName;
         newPerson.PassportNumber = "5014775864";
         newPerson.personId = personId;
+        newPerson.faceIdList = new ArrayList<>();
+        Log.d(TAG,"PersonActivity: receivedFaceId: "+receivedFaceId
+            +", receivedFaceUri: "+receivedFaceUri);
 
-        Completable.fromAction(() -> db.personDao().insertPerson(newPerson));
+        newPerson.faceIdList.add(receivedFaceId);
+
+        //Completable.fromAction(() -> db.personDao().insertPerson(newPerson));
+        Callable<Long> clbInsertPerson = new Callable<Long>() {
+            @Override
+            public Long call() throws Exception {
+                Long insertPersonId = db.personDao().insertPerson(newPerson);
+                Log.d(TAG,"PersonActivity: insertPerson, Id: "+insertPersonId);
+                return null;
+            }
+        };
+
+        Completable.fromCallable(clbInsertPerson)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                        Log.d(TAG,"PersonActivity: onSubscribe insertPerson: "+d.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d(TAG,"PersonActivity: onComplete insertPerson: ");
 
 
-        new TrainPersonGroupTask().execute(personGroupId);
 
-        //finish();
+                        new TrainPersonGroupTask().execute(personGroupId);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.d(TAG,"PersonActivity: onError insertPerson: "+e.getMessage());
+                    }
+                });
+
+
+        //new TrainPersonGroupTask().execute(personGroupId);
     }
 
     private void addFace(){
@@ -418,8 +461,16 @@ public class PersonActivity extends AppCompatActivity {
                     intent.putExtra("PersonGroupId", personGroupId);
                     Log.d("LOG_TAG", "PersonActivity: mImageUriStr: "+imageUri.toString());
                     intent.putExtra("ImageUriStr", imageUri.toString());
-                    startActivity(intent);
+                    startActivityForResult(intent, REQUEST_ADD_FACE);
                 }
+                break;
+            case REQUEST_ADD_FACE:
+
+                if(resultCode == RESULT_OK){
+                    receivedFaceUri = data.getStringExtra("FaceUri");
+                    receivedFaceId = data.getStringExtra("FaceId");
+                }
+
                 break;
                 default:
                     break;
@@ -444,11 +495,45 @@ public class PersonActivity extends AppCompatActivity {
 
         //StorageHelper.deleteFaces(faceIdsToDelete,personId, this);
 
-        Completable.fromAction(() -> db.faceDao().deleteFaces(faceIdsToDelete));
+        //Completable.fromAction(() -> db.faceDao().deleteFaces(faceIdsToDelete));
+        Callable<Integer> clbDeleteFaces = new Callable<Integer>() {
+            @Override
+            public Integer call() throws Exception {
+                int deletedFacesCount = db.faceDao().deleteFaces(faceIdsToDelete);
+                Log.d(TAG,"PersonActivity: deleteFaces: deletedFacesCount: "+deletedFacesCount);
 
-        faceGridViewAdapter.faceIdList = newFaceIdList;
+                faceGridViewAdapter.faceIdList = newFaceIdList;
+                faceGridViewAdapter.faceChecked= newFaceChecked;
+                faceGridViewAdapter.notifyDataSetChanged();
+
+                return deletedFacesCount;
+            }
+        };
+
+        Completable.fromCallable(clbDeleteFaces)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new CompletableObserver() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                        Log.d(TAG,"PersonActivity: deleteFaces: onSubscribe: "+d.toString());
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        Log.d(TAG,"PersonActivity: deleteFaces: onSubscribe: ");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        Log.d(TAG,"PersonActivity: deleteFaces: onSubscribe: "+e.getMessage());
+                    }
+                });
+
+        /*faceGridViewAdapter.faceIdList = newFaceIdList;
         faceGridViewAdapter.faceChecked= newFaceChecked;
-        faceGridViewAdapter.notifyDataSetChanged();
+        faceGridViewAdapter.notifyDataSetChanged();*/
+
     }
 
     private class FaceGridViewAdapter extends BaseAdapter{
@@ -463,6 +548,8 @@ public class PersonActivity extends AppCompatActivity {
 
             //Set<String> faceIdSet = StorageHelper.getAllFaceIds(personId, PersonActivity.this);
             final List<String>[] receivedFaceIdList = new List[]{new ArrayList<>()};
+
+            Log.d(TAG,"PersonActivity: beforeFaceIds");
 
             db.personDao().getAllFaceIds(personId)
                     .subscribeOn(Schedulers.io())

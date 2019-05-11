@@ -17,7 +17,7 @@ public interface FaceDao {
     Single<String> getFaceUri(String faceId);
 
     @Insert
-    void insert(Face face);
+    long insert(Face face);
 
     @Query("DELETE FROM person WHERE faceIdList IN (:idsToDeleteList)")
     int deleteFaces(List<String> idsToDeleteList);

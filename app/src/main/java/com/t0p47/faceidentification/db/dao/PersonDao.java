@@ -19,7 +19,7 @@ public interface PersonDao {
     @Query("SELECT * FROM person")
     Single<List<Person>> getAll();
 
-    @Query("SELECT firstName, lastName FROM person WHERE personId= :personId")
+    @Query("SELECT firstName FROM person WHERE personId= :personId")
     Single<Name> getNameById(String personId);
 
     @Query("SELECT personId FROM person")
@@ -28,11 +28,14 @@ public interface PersonDao {
     @Query("SELECT faceIdList FROM Person WHERE personId = :personId")
     Single<List<String>> getAllFaceIds(String personId);
 
+    @Query("UPDATE person SET faceIdList = :newFaceIds WHERE personId = :personId")
+    int updateFaceIds(String personId, List<String> newFaceIds);
+
     @Insert
-    void insertPerson(Person person);
+    long insertPerson(Person person);
 
     @Update
-    void updatePerson(Person person);
+    int updatePerson(Person person);
 
     /*
     * @Query("DELETE FROM person WHERE faceIdList IN (:idsToDeleteList)")

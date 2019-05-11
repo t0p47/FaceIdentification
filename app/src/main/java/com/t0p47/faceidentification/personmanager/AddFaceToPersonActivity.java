@@ -2,6 +2,7 @@ package com.t0p47.faceidentification.personmanager;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -24,6 +25,7 @@ import com.microsoft.projectoxford.face.contract.Face;
 import com.microsoft.projectoxford.face.contract.FaceRectangle;
 import com.t0p47.faceidentification.R;
 import com.t0p47.faceidentification.db.AppDatabase;
+import com.t0p47.faceidentification.db.entities.Person;
 import com.t0p47.faceidentification.helper.IdentificationApp;
 import com.t0p47.faceidentification.helper.ImageHelper;
 import com.t0p47.faceidentification.helper.StorageHelper;
@@ -38,8 +40,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
 
 import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.observers.DisposableSingleObserver;
+import io.reactivex.schedulers.Schedulers;
 
 public class AddFaceToPersonActivity extends AppCompatActivity {
 
@@ -147,6 +155,8 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
 
     AppDatabase db = IdentificationApp.getInstance().getDatabase();
 
+    private static final String TAG = "LOG_TAG";
+
     private void setUiBeforeBackgroundTask(){
         mProgressDialog.show();
     }
@@ -179,7 +189,53 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
                     face.faceUri = uri.toString();
                     face.personId = mPersonId;
 
-                    Completable.fromAction(() -> db.faceDao().insert(face));
+                    //Completable.fromAction(() -> db.faceDao().insert(face));
+                    Callable<Long> clbInsertFace = new Callable<Long>() {
+                        @Override
+                        public Long call() throws Exception {
+                            long insertFaceId = db.faceDao().insert(face);
+                            Log.d(TAG,"AddFaceToPersonActivity: insertFace: "+insertFaceId);
+                            return insertFaceId;
+                        }
+                    };
+
+
+
+                    FileOutputStream finalFileOutputStream = fileOutputStream;
+                    Completable.fromCallable(clbInsertFace)
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
+                            .subscribe(new CompletableObserver() {
+                                @Override
+                                public void onSubscribe(Disposable d) {
+                                    Log.d(TAG,"AddFaceToPersonActivity: onSubscribe insertFace: "+d.toString());
+                                }
+
+                                @Override
+                                public void onComplete() {
+                                    Log.d(TAG,"AddFaceToPersonActivity: onComplete insertFace: ");
+
+                                    if(finalFileOutputStream != null){
+                                        try{
+                                            finalFileOutputStream.close();
+                                        }catch (IOException e){
+                                            Log.d("LOG_TAG", e.getMessage());
+                                        }
+                                    }
+
+                                    Intent intent = new Intent();
+                                    intent.putExtra("FaceUri", face.faceUri);
+                                    intent.putExtra("FaceId", face.faceId);
+                                    setResult(RESULT_OK, intent);
+
+                                    finish();
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    Log.d(TAG,"AddFaceToPersonActivity: onError insertFace: "+e.getMessage());
+                                }
+                            });
 
                 }catch(Exception e){
                     Log.d("LOG_TAG", e.getMessage());
@@ -193,7 +249,7 @@ public class AddFaceToPersonActivity extends AppCompatActivity {
                     }
                 }
             }
-            finish();
+
         }
     }
 

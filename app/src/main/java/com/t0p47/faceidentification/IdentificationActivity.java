@@ -45,10 +45,12 @@ import java.util.UUID;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.observers.DisposableSingleObserver;
+import io.reactivex.schedulers.Schedulers;
 
 public class IdentificationActivity extends AppCompatActivity {
 
     private static final int REQUEST_TAKE_PHOTO = 1;
+    private static final int REQUEST_SELECT_IMAGE_IN_ALBUM = 2;
 
     private static final String TAG = "LOG_TAG";
 
@@ -373,7 +375,7 @@ public class IdentificationActivity extends AppCompatActivity {
     }
 
     public void takePhoto(View view){
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        /*Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if(intent.resolveActivity(getPackageManager()) != null){
 
             File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
@@ -384,7 +386,9 @@ public class IdentificationActivity extends AppCompatActivity {
                     mUriPhotoTaken = FileProvider.getUriForFile(getApplicationContext(), getApplicationContext().getPackageName() + "com.t0p47.faceidentification.provider", file);
                 }else{
                     mUriPhotoTaken = Uri.fromFile(file);
-                }*/
+                }
+
+
                 mUriPhotoTaken = Uri.fromFile(file);
 
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, mUriPhotoTaken);
@@ -392,6 +396,12 @@ public class IdentificationActivity extends AppCompatActivity {
             }catch(IOException e){
                 setInfo(e.getMessage());
             }
+        }*/
+
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(intent, REQUEST_SELECT_IMAGE_IN_ALBUM);
         }
     }
 
@@ -558,17 +568,31 @@ public class IdentificationActivity extends AppCompatActivity {
                     String personId =
                             mIdentifyResults.get(position).candidates.get(0).personId.toString();
 
+                    Log.d(TAG,"IdentificationActivity:  identifyResult: count "+mIdentifyResults.size()
+                        +", candidatesCount: "+mIdentifyResults.get(position).candidates.size()
+                        +", personId: "+mIdentifyResults.get(position).candidates.get(0).personId.toString());
+
                     /*String personName = StorageHelper.getPersonName(
                             personId, mPersonGroupId,IdentificationActivity.this
                     );*/
                     final String[] personName = {null};
+                    View finalConvertView = convertView;
                     db.personDao().getNameById(personId)
-                            .subscribeOn(AndroidSchedulers.mainThread())
+                            .subscribeOn(Schedulers.io())
+                            .observeOn(AndroidSchedulers.mainThread())
                             .subscribe(new DisposableSingleObserver<Name>() {
                                 @Override
                                 public void onSuccess(Name name) {
                                     Log.d(TAG,"IdentificationActivity: onSuccess getNameById: "+name.firstName);
                                     personName[0] = name.firstName+" "+name.lastName;
+
+                                    String identity = "Сотрудник: "+ personName[0] +"\n"
+                                            +"Соответствие: "+formatter.format(
+                                            mIdentifyResults.get(position).candidates.get(0).confidence
+                                    );
+
+                                    ((TextView) finalConvertView.findViewById(R.id.text_detected_face)).setText(
+                                            identity);
                                 }
 
                                 @Override
@@ -576,14 +600,7 @@ public class IdentificationActivity extends AppCompatActivity {
                                     Log.d(TAG,"IdentificationActivity: onError getNameById: "+e.getMessage());
                                 }
                             });
-
-
-
-                    String identity = "Сотрудник: "+ personName[0] +"\n"
-                            +"Соответствие: "+formatter.format(
-                                    mIdentifyResults.get(position).candidates.get(0).confidence
-                    );
-
+                }else{
                     ((TextView) convertView.findViewById(R.id.text_detected_face)).setText(
                             R.string.face_cannot_be_identified
                     );

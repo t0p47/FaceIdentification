@@ -173,6 +173,7 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onError(Throwable e) {
                         Log.d(TAG, "MainActivity: can't get personGroupId: "+e.getMessage());
+                        checkPersonGroup();
                     }
                 });
 
